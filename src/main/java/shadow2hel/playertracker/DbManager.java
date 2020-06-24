@@ -57,7 +57,7 @@ public class DbManager {
         return conn;
     }
 
-    public boolean UpdateUser(PlayerEntity player, long playtime) {
+    public boolean updateUser(PlayerEntity player, long playtime) {
         String uuid = player.getUniqueID().toString();
         String sql = "SELECT * FROM PLAYERACTIVITY WHERE uuid='" + uuid + "'";
         try (Connection conn = this.connect();
