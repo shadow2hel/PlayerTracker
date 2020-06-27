@@ -1,5 +1,7 @@
 package shadow2hel.playertracker.utils;
 
+import shadow2hel.playertracker.data.MinecraftTime;
+
 public class TimeUtils {
     private static final double SECONDSINDAY = 86400;
     private static final double SECONDSINHOUR = 3600;
@@ -28,12 +30,9 @@ public class TimeUtils {
         return time / 20;
     }
 
-    public static String getReadableTime(long time) {
-        int amountOfDays = getDays(time);
-        int amountOfHours = getHours(time);
-        int amountOfMinutes = getMinutes(time);
+    public static MinecraftTime getReadableTime(long time) {
 
-        return String.format("%dd%dh%dm", amountOfDays, amountOfHours, amountOfMinutes);
+        return new MinecraftTime(getDays(time), getHours(time), getMinutes(time));
     }
 
     public static int getDays(long time) {
