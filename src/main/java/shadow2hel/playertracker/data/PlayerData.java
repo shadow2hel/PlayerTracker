@@ -1,6 +1,8 @@
 package shadow2hel.playertracker.data;
 
 import java.time.LocalDateTime;
+import java.util.Date;
+import java.util.Optional;
 
 public class PlayerData {
     private String uuid;
@@ -13,7 +15,7 @@ public class PlayerData {
     private int current_week = -1;
     private int current_month = -1;
     private int current_year = -1;
-    private LocalDateTime last_played = null;
+    private Date last_played = null;
     private int join_count = -1;
 
     private PlayerData(String uuid, String username) {
@@ -57,7 +59,7 @@ public class PlayerData {
         return current_year;
     }
 
-    public LocalDateTime getLast_played() {
+    public Date getLast_played() {
         return last_played;
     }
 
@@ -80,7 +82,7 @@ public class PlayerData {
         private int current_week = -1;
         private int current_month = -1;
         private int current_year = -1;
-        private LocalDateTime last_played = null;
+        private Date last_played = null;
         private int join_count = -1;
 
         public Builder(String uuid, String username) {
@@ -128,7 +130,7 @@ public class PlayerData {
             return this;
         }
 
-        public Builder withLastPlayed(LocalDateTime time) {
+        public Builder withLastPlayed(Date time) {
             this.last_played = time;
             return this;
         }

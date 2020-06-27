@@ -1,26 +1,25 @@
 package shadow2hel.playertracker.encryption;
 
 import org.jasypt.util.text.StrongTextEncryptor;
+import shadow2hel.playertracker.setup.Config;
 
 public class Encryption {
-    private static final String PASSWORD = "SH@D0WZ1SG@Y";
-    private static final boolean USEENCRYPTION = false;
 
     public static String encrypt(String unencrypted) {
-        if (!USEENCRYPTION)
+        if (!Config.SERVER.encryption.get())
             return unencrypted;
         StrongTextEncryptor textEncryptor = new StrongTextEncryptor();
-        textEncryptor.setPassword(PASSWORD);
+        textEncryptor.setPassword(Config.SERVER.encryptionPassword.get());
 
         return textEncryptor.encrypt(unencrypted);
 
     }
 
     public static String decrypt(String encrypted) {
-        if (!USEENCRYPTION)
+        if (!Config.SERVER.encryption.get())
             return encrypted;
         StrongTextEncryptor textEncryptor = new StrongTextEncryptor();
-        textEncryptor.setPassword(PASSWORD);
+        textEncryptor.setPassword(Config.SERVER.encryptionPassword.get());
         return textEncryptor.decrypt(encrypted);
     }
 }

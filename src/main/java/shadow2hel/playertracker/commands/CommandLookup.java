@@ -10,16 +10,19 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
-import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.StringTextComponent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import shadow2hel.playertracker.DbManager;
 import shadow2hel.playertracker.PlayerTracker;
 import shadow2hel.playertracker.data.PlayerData;
+import shadow2hel.playertracker.setup.Config;
 import shadow2hel.playertracker.utils.StringUtils;
+import shadow2hel.playertracker.utils.TimeUtils;
 
+import java.text.SimpleDateFormat;
 import java.util.List;
+import java.util.TimeZone;
 
 public class CommandLookup implements Command<CommandSource> {
 
@@ -43,11 +46,7 @@ public class CommandLookup implements Command<CommandSource> {
                                     return builder.buildFuture();
                                 })
                                 .executes(CMD)
-                )
-                .executes(c -> {
-                    c.getSource().sendFeedback(new StringTextComponent("You haven't provided a name!"), false);
-                    return 0;
-                });
+                );
     }
 
     @Override
@@ -61,22 +60,33 @@ public class CommandLookup implements Command<CommandSource> {
         if (foundPlayer == null) {
             SimpleCommandExceptionType exception = new SimpleCommandExceptionType(
                     new LiteralMessage(username + " doesn't exist!"));
-            throw new CommandSyntaxException(exception, new LiteralMessage(PlayerTracker.PREFIX + " " + exception.toString()));
+            throw new CommandSyntaxException(exception, new LiteralMessage(exception.toString()));
         }
 
-
-        List<ITextComponent> text = new MessageBuilder()
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z Z");
+        format.setTimeZone(TimeZone.getTimeZone(Config.SERVER.timeZone.get()));
+        String date = null;
+        try {
+            if (foundPlayer.getLast_played() == null)
+                date = "None";
+            else
+                date = format.format(foundPlayer.getLast_played());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Message message = new MessageBuilder()
                 .addHeader(" PLAYER TRACKER ", '=', 6)
-                .addText("Player: " + foundPlayer.getUsername())
-                .addText("Total playtime: " + foundPlayer.getPlaytime_all())
-                .addText("Weekly playtime: " + foundPlayer.getPlaytime_week())
-                .addText("Monthly playtime: " + foundPlayer.getPlaytime_month())
-                .addText("Yearly playtime: " + foundPlayer.getPlaytime_year())
-                .addText("Last joined: " + foundPlayer.getLast_played())
-                .addText("Times joined: " + foundPlayer.getJoin_count())
-                .addFooter('~', 15)
+                .addText(String.format("Player: %s", foundPlayer.getUsername()))
+                .addText(String.format("Total playtime: %s", foundPlayer.getPlaytime_all()))
+                .addText(String.format("Weekly playtime: %s", foundPlayer.getPlaytime_week()))
+                .addText(String.format("Monthly playtime: %s", foundPlayer.getPlaytime_month()))
+                .addText(String.format("Yearly playtime: %s", foundPlayer.getPlaytime_year()))
+                .addText(String.format("Last joined: %s", date))
+                .addText(String.format("Times joined: %s", foundPlayer.getJoin_count()))
+                .addFooter("", '~', 15)
                 .build();
-        text.forEach(t -> context.getSource().sendFeedback(t, false));
+
+        message.send(context.getSource());
         return 0;
     }
 }

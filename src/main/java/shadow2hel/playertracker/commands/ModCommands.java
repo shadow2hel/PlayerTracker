@@ -12,6 +12,7 @@ public class ModCommands {
         LiteralCommandNode<CommandSource> cmdPlayerTracker = dispatcher.register(
                 Commands.literal(PlayerTracker.MODID)
                         .then(CommandLookup.register(dispatcher))
+                        .then(CommandStats.register(dispatcher))
         );
 
         dispatcher.register(Commands.literal("pt").redirect(cmdPlayerTracker));

@@ -2,9 +2,12 @@ package shadow2hel.playertracker.utils;
 
 import shadow2hel.playertracker.data.MinecraftTime;
 
+import java.util.TimeZone;
+
 public class TimeUtils {
     private static final double SECONDSINDAY = 86400;
     private static final double SECONDSINHOUR = 3600;
+    public static final TimeZone TIMEZONE = TimeZone.getTimeZone("Etc/UTC");
 
     private TimeUtils() {
 

@@ -1,5 +1,6 @@
 package shadow2hel.playertracker;
 
+import com.ibm.icu.impl.Grego;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.stats.ServerStatisticsManager;
@@ -9,11 +10,14 @@ import org.apache.logging.log4j.Logger;
 import shadow2hel.playertracker.data.MinecraftTime;
 import shadow2hel.playertracker.data.PlayerData;
 import shadow2hel.playertracker.encryption.Encryption;
+import shadow2hel.playertracker.setup.Config;
 import shadow2hel.playertracker.utils.PlayerUtils;
 import shadow2hel.playertracker.utils.TimeSelector;
 import shadow2hel.playertracker.utils.TimeUtils;
 
 import java.sql.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
@@ -87,9 +91,14 @@ public class DbManager {
 
     public PlayerData generatePlayerData(ResultSet rs) throws SQLException {
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        LocalDateTime date = (rs.getString(10) != null) ? LocalDateTime.parse(rs.getString(10), formatter) : null;
-
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z Z");
+        format.setTimeZone(TimeZone.getTimeZone(Config.SERVER.timeZone.get()));
+        Date date = null;
+        try {
+            date = (rs.getString(10) != null) ? format.parse(rs.getString(10)) : null;
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
 //        PlayerData playerData = new PlayerData(
 //                rs.getString(1),
 //                rs.getLong(2),
@@ -165,8 +174,8 @@ public class DbManager {
         String sql = "SELECT * FROM PLAYERACTIVITY WHERE uuid='" + getEncryptedUUID(player.getUniqueID().toString()) + "'";
         try (Connection conn = this.connect();
              Statement stmt = conn.createStatement()) {
-            Calendar cal = Calendar.getInstance();
-            cal.setTime(new Date());
+            Calendar cal = new GregorianCalendar();;
+            cal.setTimeZone(TimeZone.getTimeZone(Config.SERVER.timeZone.get()));
             ResultSet rs = stmt.executeQuery(sql);
             if (!rs.next()) {
                 PreparedStatement pstInsert = conn.prepareStatement(
@@ -184,7 +193,8 @@ public class DbManager {
                 pstInsert.setInt(8, cal.get(Calendar.MONTH) + 1);
                 pstInsert.setInt(9, cal.get(Calendar.YEAR));
                 pstInsert.execute();
-                LOGGER.info("Added user " + uuid);
+                if (Config.SERVER.debug.get())
+                    LOGGER.info("Inserted user " + uuid);
             } else {
                 do {
                     PlayerData oldply = generatePlayerData(rs);
@@ -206,8 +216,8 @@ public class DbManager {
                     } else if (oldply.getCurrent_week() == (cal.get(Calendar.WEEK_OF_YEAR))) {
                         updateUserData(conn, playtime, TimeSelector.WEEK, oldply, player, true);
                     }
-
-                    LOGGER.info("Updated user " + player.getUniqueID().toString());
+                    if (Config.SERVER.debug.get())
+                        LOGGER.info("Updated user " + player.getUniqueID().toString());
 
                 } while (rs.next());
             }
@@ -230,8 +240,8 @@ public class DbManager {
     }
 
     private void updateUserData(Connection conn, long playtime, TimeSelector timeSelector, PlayerData oldData, PlayerEntity player, boolean addTime) throws SQLException {
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(new Date());
+        Calendar cal = new GregorianCalendar();
+        cal.setTimeZone(TimeZone.getTimeZone(Config.SERVER.timeZone.get()));
         long newTimePlayedSeconds = getNewTime(oldData, player, playtime);
         // Upon reset of the week/month/year activity
         newTimePlayedSeconds = addTime ? newTimePlayedSeconds : newTimePlayedSeconds - oldData.getPlaytime();
@@ -257,24 +267,33 @@ public class DbManager {
         ServerStatisticsManager stats = ((ServerPlayerEntity) player).getStats();
         int joinCount = stats.getValue(Stats.CUSTOM.get(Stats.LEAVE_GAME)) + 1;
         try (Connection conn = this.connect()) {
+            Calendar cal = new GregorianCalendar();
+            cal.setTimeZone(TimeZone.getTimeZone(Config.SERVER.timeZone.get()));
+            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z Z");
+            formatter.setTimeZone(TimeZone.getTimeZone(Config.SERVER.timeZone.get()));
+            String date = formatter.format(cal.getTime());
+
             String sqlSelect = "SELECT * FROM PLAYERACTIVITY WHERE uuid = ?";
             PreparedStatement pstSelect = conn.prepareStatement(sqlSelect);
             pstSelect.setString(1, getEncryptedUUID(player.getUniqueID().toString()));
             ResultSet rs = pstSelect.executeQuery();
             if (!rs.next()) {
-                String sqlInsert = "INSERT INTO PLAYERACTIVITY (uuid, last_played, join_count) VALUES (?, datetime('now'), ?)";
+
+                String sqlInsert = "INSERT INTO PLAYERACTIVITY (uuid, last_played, join_count) VALUES (?, ?, ?)";
                 PreparedStatement pstInsert = conn.prepareStatement(sqlInsert);
                 pstInsert.setString(1, Encryption.encrypt(player.getUniqueID().toString()));
-                pstInsert.setInt(2, joinCount);
+                pstInsert.setString(2, date);
+                pstInsert.setInt(3, joinCount);
                 pstInsert.execute();
             } else {
                 do {
-                    String sqlUpdate = "UPDATE PLAYERACTIVITY SET last_played = datetime('now'), \n" +
+                    String sqlUpdate = "UPDATE PLAYERACTIVITY SET last_played = ?, \n" +
                             " join_count = ? " +
                             " WHERE uuid = ?";
                     PreparedStatement pstUpdate = conn.prepareStatement(sqlUpdate);
-                    pstUpdate.setInt(1, joinCount);
-                    pstUpdate.setString(2, getEncryptedUUID(player.getUniqueID().toString()));
+                    pstUpdate.setString(1, date);
+                    pstUpdate.setInt(2, joinCount);
+                    pstUpdate.setString(3, getEncryptedUUID(player.getUniqueID().toString()));
                     pstUpdate.executeUpdate();
                 } while (rs.next());
             }

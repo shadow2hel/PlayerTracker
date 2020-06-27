@@ -9,10 +9,14 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class MessageBuilder {
-    private List<ITextComponent> textComponents;
+    private List<ITextComponent> textHeaders;
+    private List<ITextComponent> textMain;
+    private List<ITextComponent> textFooters;
 
     public MessageBuilder() {
-        textComponents = new LinkedList<>();
+        textHeaders = new LinkedList<>();
+        textMain = new LinkedList<>();
+        textFooters = new LinkedList<>();
     }
 
     public MessageBuilder addHeader(String headerName, char encasing, int amountOfEncasing) {
@@ -24,40 +28,44 @@ public class MessageBuilder {
         header.applyTextStyle(TextFormatting.GOLD);
         header.appendSibling(new StringTextComponent(headerName).applyTextStyle(TextFormatting.WHITE));
         header.appendSibling(new StringTextComponent(encasingString.toString()).applyTextStyle(TextFormatting.GOLD));
-        textComponents.add(header);
+        textHeaders.add(header);
         return this;
     }
 
-    public MessageBuilder addFooter(char encasing, int amountOfEncasing) {
+    public MessageBuilder addFooter(String headerName, char encasing, int amountOfEncasing) {
         StringBuilder encasingString = new StringBuilder();
         for (int i = 0; i < amountOfEncasing; i++) {
             encasingString.append(encasing);
         }
-        textComponents.add(new StringTextComponent(encasingString.toString()).applyTextStyle(TextFormatting.GOLD));
+        StringTextComponent footer = new StringTextComponent(encasingString.toString());
+        footer.applyTextStyle(TextFormatting.GOLD);
+        footer.appendSibling(new StringTextComponent(headerName).applyTextStyle(TextFormatting.WHITE));
+        footer.appendSibling(new StringTextComponent(encasingString.toString()).applyTextStyle(TextFormatting.GOLD));
+        textFooters.add(footer);
         return this;
     }
 
     public MessageBuilder addText(String message) {
-        textComponents.add(new StringTextComponent(message));
+        textMain.add(new StringTextComponent(message));
         return this;
     }
 
     public MessageBuilder addText(String message, TextFormatting formatting) {
-        textComponents.add(new StringTextComponent(message).applyTextStyle(formatting));
+        textMain.add(new StringTextComponent(message).applyTextStyle(formatting));
         return this;
     }
 
     public MessageBuilder addText(String message, Style style) {
-        textComponents.add(new StringTextComponent(message).setStyle(style));
+        textMain.add(new StringTextComponent(message).setStyle(style));
         return this;
     }
 
     public MessageBuilder addTextComponent(ITextComponent component) {
-        textComponents.add(component);
+        textMain.add(component);
         return this;
     }
 
-    public List<ITextComponent> build() {
-        return textComponents;
+    public Message build() {
+        return new Message(textHeaders, textMain, textFooters);
     }
 }

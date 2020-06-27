@@ -49,6 +49,10 @@ public class MinecraftTime implements Comparable<MinecraftTime> {
         return this.getMinutes() - o.getMinutes();
     }
 
+    public String toLongerString() {
+        return String.format("%d Days, %d hours, %d minutes");
+    }
+
     @Override
     public String toString() {
         return String.format("%dd%dh%dm", getDays(), getHours(), getMinutes());
