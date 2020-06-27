@@ -12,11 +12,10 @@ import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.StringTextComponent;
-import net.minecraft.util.text.Style;
-import net.minecraft.util.text.TextFormatting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import shadow2hel.playertracker.DbManager;
+import shadow2hel.playertracker.PlayerTracker;
 import shadow2hel.playertracker.data.PlayerData;
 import shadow2hel.playertracker.utils.StringUtils;
 
@@ -59,20 +58,25 @@ public class CommandLookup implements Command<CommandSource> {
                 .filter(p -> p.getUsername().equalsIgnoreCase(username))
                 .findFirst()
                 .orElse(null);
-        ITextComponent rootText = new StringTextComponent("==== PLAYER TRACKER ====").setStyle(new Style().setColor(TextFormatting.BLUE));
-        if (foundPlayer != null) {
-            rootText.appendText("Testing123");
-            rootText.appendText("Testing 1234545");
-            rootText.appendText("playtime: " + foundPlayer.getPlaytime_all());
-        } else {
-            rootText = new StringTextComponent(username + " DOES NOT EXIST!")
-                    .applyTextStyle(TextFormatting.RED);
-            context.getSource().sendFeedback(rootText, false);
-            throw new CommandSyntaxException(new SimpleCommandExceptionType(
-                    new LiteralMessage("User doesn't exist!")),
-                    new LiteralMessage("Command lookup didn't receive a name that was found!"));
+        if (foundPlayer == null) {
+            SimpleCommandExceptionType exception = new SimpleCommandExceptionType(
+                    new LiteralMessage(username + " doesn't exist!"));
+            throw new CommandSyntaxException(exception, new LiteralMessage(PlayerTracker.PREFIX + " " + exception.toString()));
         }
-        context.getSource().sendFeedback(rootText, false);
+
+
+        List<ITextComponent> text = new MessageBuilder()
+                .addHeader(" PLAYER TRACKER ", '=', 6)
+                .addText("Player: " + foundPlayer.getUsername())
+                .addText("Total playtime: " + foundPlayer.getPlaytime_all())
+                .addText("Weekly playtime: " + foundPlayer.getPlaytime_week())
+                .addText("Monthly playtime: " + foundPlayer.getPlaytime_month())
+                .addText("Yearly playtime: " + foundPlayer.getPlaytime_year())
+                .addText("Last joined: " + foundPlayer.getLast_played())
+                .addText("Times joined: " + foundPlayer.getJoin_count())
+                .addFooter('~', 15)
+                .build();
+        text.forEach(t -> context.getSource().sendFeedback(t, false));
         return 0;
     }
 }

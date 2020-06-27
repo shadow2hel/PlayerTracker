@@ -7,11 +7,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import shadow2hel.playertracker.DbManager;
-import shadow2hel.playertracker.data.PlayerData;
 import shadow2hel.playertracker.utils.TimeUtils;
-
-import java.util.Comparator;
-import java.util.List;
 
 public class PlayerEventHandler {
     private final DbManager dbManager = DbManager.getInstance();
@@ -19,9 +15,7 @@ public class PlayerEventHandler {
 
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
-        dbManager.updateUser(event.getPlayer());
-        List<PlayerData> playerDataList = dbManager.getSortedPlayerDatas(dbManager.getAllPlayerData(), Comparator.comparing(PlayerData::getPlaytime_week), true);
-        playerDataList.forEach(p -> LOGGER.info(p.getPlaytime_week()));
+        dbManager.updateUserStats(event.getPlayer());
     }
 
     @SubscribeEvent

@@ -14,6 +14,7 @@ import shadow2hel.playertracker.setup.ModSetup;
 public class PlayerTracker {
     // Directly reference a log4j logger.
     public static final String MODID = "playertracker";
+    public static final String PREFIX = "[PT]";
 
     public PlayerTracker() {
         // Register the setup method for modloading
