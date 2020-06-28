@@ -45,8 +45,7 @@ public class Config {
                     .define("timeZone", "Etc/UTC");
 
             addPlayersFromSave = builder
-                    .comment(" If you enable this, Player Tracker will add players on startup based on the data found under your world/playerdata.")
-                    .comment("DO NOT COPY DATA OVER FROM PLAYERS WHO HAVEN'T PLAYED ON THE SERVER!!")
+                    .comment(" If you enable this, Player Tracker will add players on startup based on the data found under your world/playerdata.\n DO NOT COPY DATA OVER FROM PLAYERS WHO HAVEN'T PLAYED ON THE SERVER!!")
                     .define("addPlayersFromSave", false);
 
             builder.pop();

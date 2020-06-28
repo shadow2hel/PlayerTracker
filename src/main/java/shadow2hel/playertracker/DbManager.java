@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.*;
+import java.util.function.Supplier;
 
 public class DbManager {
     private final String name = "playertracker.db";
@@ -216,6 +217,7 @@ public class DbManager {
                     } else if (oldply.getCurrent_week() == (cal.get(Calendar.WEEK_OF_YEAR))) {
                         updateUserData(conn, playtime, TimeSelector.WEEK, oldply, player, true);
                     }
+                    updateUserData(conn, playtime, TimeSelector.ALL, oldply, player,true);
                     if (Config.SERVER.debug.get())
                         LOGGER.info("Updated user " + player.getUniqueID().toString());
 
@@ -228,13 +230,40 @@ public class DbManager {
         return true;
     }
 
-    private long getNewTime(PlayerData oldData, PlayerEntity player, long playtime) {
+    private long getNewTime(PlayerData oldData, TimeSelector selector, long playtime) {
         long newTimePlayedSeconds = playtime;
 
-        // On world reset for example, when the statistics have been reset
-        if (newTimePlayedSeconds < oldData.getPlaytime()) {
-            newTimePlayedSeconds += oldData.getPlaytime();
+        if (selector == TimeSelector.ALL) {
+            // On world reset for example, when the statistics have been reset
+            long total = oldData.getPlaytime();
+            if (newTimePlayedSeconds < total) {
+                newTimePlayedSeconds += total;
+            }
         }
+
+        if (selector == TimeSelector.WEEK) {
+            long week = TimeUtils.getTotalTime(oldData.getPlaytime_week());
+            if (newTimePlayedSeconds < week) {
+                newTimePlayedSeconds += week;
+            }
+        }
+
+        if (selector == TimeSelector.MONTH) {
+            long month = TimeUtils.getTotalTime(oldData.getPlaytime_month());
+            if (newTimePlayedSeconds < month) {
+                newTimePlayedSeconds += month;
+            }
+        }
+
+        if (selector == TimeSelector.YEAR) {
+            long year = TimeUtils.getTotalTime(oldData.getPlaytime_year());
+            if (newTimePlayedSeconds < year) {
+                newTimePlayedSeconds += year;
+            }
+        }
+
+        if (selector == null)
+            throw new IllegalArgumentException("TimeSelector doesn't exist!");
 
         return newTimePlayedSeconds;
     }
@@ -242,25 +271,56 @@ public class DbManager {
     private void updateUserData(Connection conn, long playtime, TimeSelector timeSelector, PlayerData oldData, PlayerEntity player, boolean addTime) throws SQLException {
         Calendar cal = new GregorianCalendar();
         cal.setTimeZone(TimeZone.getTimeZone(Config.SERVER.timeZone.get()));
-        long newTimePlayedSeconds = getNewTime(oldData, player, playtime);
+        Map<TimeSelector, Supplier<Long>> getSelectedTime = new HashMap<>();
+        getSelectedTime.put(TimeSelector.ALL, oldData::getPlaytime);
+        getSelectedTime.put(TimeSelector.WEEK, () -> {
+            oldData.setCurrent_week(cal.get(Calendar.WEEK_OF_YEAR));
+            return TimeUtils.getTotalTime(oldData.getPlaytime_week());
+        });
+        getSelectedTime.put(TimeSelector.MONTH, () -> {
+            oldData.setCurrent_month(cal.get(Calendar.MONTH) + 1);
+            return TimeUtils.getTotalTime(oldData.getPlaytime_month());
+        });
+        getSelectedTime.put(TimeSelector.YEAR, () -> {
+            oldData.setCurrent_year(cal.get(Calendar.YEAR));
+            return TimeUtils.getTotalTime(oldData.getPlaytime_year());
+        });
+        Map<TimeSelector, Supplier<Integer>> getCurrentTime = new HashMap<TimeSelector, Supplier<Integer>>(){
+            {
+                put(TimeSelector.WEEK, oldData::getCurrent_week);
+                put(TimeSelector.MONTH, oldData::getCurrent_month);
+                put(TimeSelector.YEAR, oldData::getCurrent_year);
+            }
+        };
+        long newTimePlayedSeconds = getNewTime(oldData, timeSelector, playtime);
+        long timePlaytime = 0;
+        timePlaytime = getSelectedTime.get(timeSelector).get();
         // Upon reset of the week/month/year activity
-        newTimePlayedSeconds = addTime ? newTimePlayedSeconds : newTimePlayedSeconds - oldData.getPlaytime();
-        String sqlUpdate = "UPDATE PLAYERACTIVITY SET playtime = ?,\n"
-                + "   playtime_all = ?,\n"
-                + "   playtime_" + timeSelector.name().toLowerCase() + " = ?,\n"
-                + "   current_week = ?,\n"
-                + "   current_month = ?, \n"
-                + "   current_year = ? "
-                + " WHERE uuid = ?";
-        PreparedStatement pstUpdate = conn.prepareStatement(sqlUpdate);
-        pstUpdate.setLong(1, newTimePlayedSeconds);
-        pstUpdate.setString(2, TimeUtils.getReadableTime(newTimePlayedSeconds).toString());
-        pstUpdate.setString(3, TimeUtils.getReadableTime(playtime).toString());
-        pstUpdate.setInt(4, cal.get(Calendar.WEEK_OF_YEAR));
-        pstUpdate.setInt(5, cal.get(Calendar.MONTH) + 1);
-        pstUpdate.setInt(6, cal.get(Calendar.YEAR));
-        pstUpdate.setString(7, getEncryptedUUID(player.getUniqueID().toString()));
-        pstUpdate.executeUpdate();
+        newTimePlayedSeconds = addTime ? newTimePlayedSeconds : newTimePlayedSeconds - timePlaytime;
+        oldData.setPlaytimeWithChoice(timeSelector, TimeUtils.getReadableTime(newTimePlayedSeconds));
+        if (timeSelector != TimeSelector.ALL) {
+            String sqlUpdate = "UPDATE PLAYERACTIVITY SET "
+                    + " playtime_" + timeSelector.name().toLowerCase() + " = ?,\n"
+                    + " current_" + timeSelector.name().toLowerCase() + " = ? "
+                    + " WHERE uuid = ?";
+            PreparedStatement pstUpdate = conn.prepareStatement(sqlUpdate);
+            pstUpdate.setString(1, TimeUtils.getReadableTime(getSelectedTime.get(timeSelector).get()).toString());
+            pstUpdate.setString(2, "" + getCurrentTime.get(timeSelector).get());
+            pstUpdate.setString(3, getEncryptedUUID(player.getUniqueID().toString()));
+
+            pstUpdate.executeUpdate();
+        } else {
+            String sqlUpdate = "UPDATE PLAYERACTIVITY SET "
+                    + " playtime = ?,\n"
+                    + " playtime_" + timeSelector.name().toLowerCase() + " = ? "
+                    + " WHERE uuid = ?";
+            PreparedStatement pstUpdate = conn.prepareStatement(sqlUpdate);
+            pstUpdate.setString(1, "" + getSelectedTime.get(timeSelector).get());
+            pstUpdate.setString(2, TimeUtils.getReadableTime(getSelectedTime.get(timeSelector).get()).toString());
+            pstUpdate.setString(3, getEncryptedUUID(player.getUniqueID().toString()));
+
+            pstUpdate.executeUpdate();
+        }
     }
 
     public void updateUserStats(PlayerEntity player) {

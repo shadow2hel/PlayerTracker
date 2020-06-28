@@ -1,5 +1,5 @@
 package shadow2hel.playertracker.utils;
 
 public enum TimeSelector {
-    WEEK, MONTH, YEAR
+    WEEK, MONTH, YEAR, ALL
 }
