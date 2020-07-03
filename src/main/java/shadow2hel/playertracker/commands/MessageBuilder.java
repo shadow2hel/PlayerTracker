@@ -52,8 +52,8 @@ public class MessageBuilder {
         }
         StringTextComponent footer = new StringTextComponent(encasingString.toString());
         footer.applyTextStyle(TextFormatting.GOLD);
-        footer.appendSibling(component);
-        footer.appendSibling(new StringTextComponent(encasingString.toString()).applyTextStyle(TextFormatting.GOLD));
+        footer.appendSibling(component.applyTextStyle(TextFormatting.WHITE));
+        footer.appendSibling(new StringTextComponent(encasingString.toString()).applyTextStyle(TextFormatting.GOLD).appendText("").applyTextStyle(TextFormatting.RESET));
         textFooters.add(footer);
         return this;
     }

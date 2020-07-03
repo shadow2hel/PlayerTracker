@@ -14,11 +14,13 @@ import net.minecraft.command.Commands;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.Style;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.event.ClickEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import shadow2hel.playertracker.DbManager;
 import shadow2hel.playertracker.data.PlayerData;
+import shadow2hel.playertracker.setup.Config;
 import shadow2hel.playertracker.utils.StringUtils;
 import shadow2hel.playertracker.utils.TimeSelector;
 
@@ -103,8 +105,9 @@ public class CommandStats implements Command<CommandSource> {
                 break;
         }
 
-        int records = pageNumber * 10;
-        if (records > 10 && playerData.size() < records) {
+        int maxEntriesPerPage = Config.SERVER.maxEntriesPerPage.get();
+        int records = pageNumber * maxEntriesPerPage;
+        if (records > maxEntriesPerPage && playerData.size() < records) {
             SimpleCommandExceptionType exception = new SimpleCommandExceptionType(
                     new LiteralMessage("Not enough entries!"));
             throw new CommandSyntaxException(exception, new LiteralMessage(exception.toString()));
@@ -114,24 +117,28 @@ public class CommandStats implements Command<CommandSource> {
         MessageBuilder msgBuilder = new MessageBuilder()
                 .addHeader( allOrNot + " STATISTICS ", '=', 6);
 
-        for (int i = records - 10; i < playerData.size() && i < records; i++) {
+        for (int i = records - maxEntriesPerPage; i < playerData.size() && i < records; i++) {
             msgBuilder.addText(String.format("%d. %s - %s", i + 1, playerData.get(i).getUsername(), playerData.get(i).getPlaytime_week()));
         }
 
-        String command = choice.replace("ly", "");
-        int amountPages = (int)Math.ceil((double)playerData.size() / 10.0);
+        int amountPages = (int)Math.ceil((double)playerData.size() / (double)maxEntriesPerPage);
         List<ITextComponent> links = new ArrayList<>();
         for (int i = 0; i < amountPages; i++) {
             StringTextComponent child;
             if (i + 1 == pageNumber) {
-                child = new StringTextComponent((i + 1) + ", ");
-                child.setStyle(new Style().setUnderlined(true));
+                child = new StringTextComponent(String.format(" %d,", (i+1)));
+                if(amountPages==1)
+                    child = new StringTextComponent(String.format(" %d ", (i+1)));
+                if(i + 1 == amountPages)
+                    child = new StringTextComponent(String.format(" %d ", (i+1)));
+                child.setStyle(new Style().setBold(true));
+                child.applyTextStyle(TextFormatting.GREEN);
             } else if (i + 1 == amountPages) {
-                child = new StringTextComponent((i + 1) + "");
-                child.setStyle(new Style().setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/pt stats " + command + " " + (i + 1))));
+                child = new StringTextComponent(String.format(" %d ", (i+1)));
+                child.setStyle(new Style().setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/pt stats " + choice + " " + (i + 1))));
             } else {
-                child = new StringTextComponent((i + 1) + ", ");
-                child.setStyle(new Style().setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/pt stats " + command + " " + (i + 1))));
+                child = new StringTextComponent( String.format(" %d,", (i + 1)));
+                child.setStyle(new Style().setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/pt stats " + choice + " " + (i + 1))));
             }
             links.add(child);
         }

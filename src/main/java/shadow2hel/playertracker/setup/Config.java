@@ -26,6 +26,7 @@ public class Config {
         //General config
         public final ForgeConfigSpec.ConfigValue<String> timeZone;
         public final ForgeConfigSpec.BooleanValue addPlayersFromSave;
+        public final ForgeConfigSpec.IntValue maxEntriesPerPage;
 
         //Encryption
         public final ForgeConfigSpec.BooleanValue encryption;
@@ -47,6 +48,10 @@ public class Config {
             addPlayersFromSave = builder
                     .comment(" If you enable this, Player Tracker will add players on startup based on the data found under your world/playerdata.\n DO NOT COPY DATA OVER FROM PLAYERS WHO HAVEN'T PLAYED ON THE SERVER!!")
                     .define("addPlayersFromSave", false);
+
+            maxEntriesPerPage = builder
+                    .comment(" How many entries per page in statistics you want.")
+                    .defineInRange("maxEntriesPerPage", 10, 1, 1000);
 
             builder.pop();
 
