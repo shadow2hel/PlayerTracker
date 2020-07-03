@@ -106,8 +106,8 @@ public class CommandStats implements Command<CommandSource> {
         }
 
         int maxEntriesPerPage = Config.SERVER.maxEntriesPerPage.get();
-        int records = pageNumber * maxEntriesPerPage;
-        if (records > maxEntriesPerPage && playerData.size() < records) {
+        int possibleEntries = pageNumber * maxEntriesPerPage;
+        if (playerData.size() < possibleEntries) {
             SimpleCommandExceptionType exception = new SimpleCommandExceptionType(
                     new LiteralMessage("Not enough entries!"));
             throw new CommandSyntaxException(exception, new LiteralMessage(exception.toString()));
@@ -117,7 +117,7 @@ public class CommandStats implements Command<CommandSource> {
         MessageBuilder msgBuilder = new MessageBuilder()
                 .addHeader( allOrNot + " STATISTICS ", '=', 6);
 
-        for (int i = records - maxEntriesPerPage; i < playerData.size() && i < records; i++) {
+        for (int i = possibleEntries - maxEntriesPerPage; i < playerData.size() && i < possibleEntries; i++) {
             msgBuilder.addText(String.format("%d. %s - %s", i + 1, playerData.get(i).getUsername(), playerData.get(i).getPlaytime_week()));
         }
 
