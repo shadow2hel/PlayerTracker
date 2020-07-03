@@ -113,7 +113,8 @@ public class DbManager {
 //                date,
 //                rs.getInt(11)
 //        );
-        return new PlayerData.Builder(rs.getString(1), PlayerUtils.getPlayerUsername(rs.getString(1)))
+        String decryptedUUID = Encryption.decrypt(rs.getString(1));
+        return new PlayerData.Builder(decryptedUUID, PlayerUtils.getPlayerUsername(decryptedUUID))
                 .withPlaytime(rs.getLong(2))
                 .withPlaytimeAll(new MinecraftTime(rs.getString(3) != null ? rs.getString(3) : "0d0h0m"))
                 .withPlaytimeThisWeek(new MinecraftTime(rs.getString(4) != null ? rs.getString(4) : "0d0h0m"))
@@ -199,27 +200,36 @@ public class DbManager {
             } else {
                 do {
                     PlayerData oldply = generatePlayerData(rs);
+                    oldply.updatePlaytime(playtime - oldply.getPlaytime());
 
-                    if (oldply.getCurrent_year() != cal.get(Calendar.YEAR)) {
-                        updateUserData(conn, playtime, TimeSelector.YEAR, oldply, player, false);
-                    } else if (oldply.getCurrent_year() == cal.get(Calendar.YEAR)) {
-                        updateUserData(conn, playtime, TimeSelector.YEAR, oldply, player, true);
-                    }
+                    String sqlUpdate = "UPDATE PLAYERACTIVITY SET playtime = ?, \n" +
+                            "playtime_all = ?, \n" +
+                            "playtime_week = ?, \n" +
+                            "playtime_month = ?, \n" +
+                            "playtime_year = ?, \n" +
+                            "current_week = ?, \n" +
+                            "current_month = ?, \n" +
+                            "current_year = ? " +
+                            "WHERE uuid = ?";
+                    PreparedStatement pstUpdate = conn.prepareStatement(sqlUpdate);
+                    pstUpdate.setLong(1, oldply.getPlaytime());
+                    pstUpdate.setString(2, oldply.getPlaytime_all().toString());
+                    pstUpdate.setString(3, oldply.getPlaytime_week().toString());
+                    pstUpdate.setString(4, oldply.getPlaytime_month().toString());
+                    pstUpdate.setString(5, oldply.getPlaytime_year().toString());
+                    pstUpdate.setInt(6, oldply.getCurrent_week());
+                    pstUpdate.setInt(7, oldply.getCurrent_month());
+                    pstUpdate.setInt(8, oldply.getCurrent_year());
+                    pstUpdate.setString(9, getEncryptedUUID(player.getUniqueID().toString()));
 
-                    if (oldply.getCurrent_month() != (cal.get(Calendar.MONTH) + 1)) {
-                        updateUserData(conn, playtime, TimeSelector.MONTH, oldply, player, false);
-                    } else if (oldply.getCurrent_month() == (cal.get(Calendar.MONTH) + 1)) {
-                        updateUserData(conn, playtime, TimeSelector.MONTH, oldply, player, true);
-                    }
+                    int rows = pstUpdate.executeUpdate();
 
-                    if (oldply.getCurrent_week() != (cal.get(Calendar.WEEK_OF_YEAR))) {
-                        updateUserData(conn, playtime, TimeSelector.WEEK, oldply, player, false);
-                    } else if (oldply.getCurrent_week() == (cal.get(Calendar.WEEK_OF_YEAR))) {
-                        updateUserData(conn, playtime, TimeSelector.WEEK, oldply, player, true);
+                    if (Config.SERVER.debug.get()) {
+                        if (rows == 0)
+                            LOGGER.error(player.getUniqueID().toString() + " COULD NOT BE UPDATED!");
+                        else
+                            LOGGER.info(player.getUniqueID().toString() + " has been updated!");
                     }
-                    updateUserData(conn, playtime, TimeSelector.ALL, oldply, player,true);
-                    if (Config.SERVER.debug.get())
-                        LOGGER.info("Updated user " + player.getUniqueID().toString());
 
                 } while (rs.next());
             }
@@ -242,21 +252,21 @@ public class DbManager {
         }
 
         if (selector == TimeSelector.WEEK) {
-            long week = TimeUtils.getTotalTime(oldData.getPlaytime_week());
+            long week = TimeUtils.getTotalTime(oldData.getPlaytime_week().toString());
             if (newTimePlayedSeconds < week) {
                 newTimePlayedSeconds += week;
             }
         }
 
         if (selector == TimeSelector.MONTH) {
-            long month = TimeUtils.getTotalTime(oldData.getPlaytime_month());
+            long month = TimeUtils.getTotalTime(oldData.getPlaytime_month().toString());
             if (newTimePlayedSeconds < month) {
                 newTimePlayedSeconds += month;
             }
         }
 
         if (selector == TimeSelector.YEAR) {
-            long year = TimeUtils.getTotalTime(oldData.getPlaytime_year());
+            long year = TimeUtils.getTotalTime(oldData.getPlaytime_year().toString());
             if (newTimePlayedSeconds < year) {
                 newTimePlayedSeconds += year;
             }
@@ -275,15 +285,15 @@ public class DbManager {
         getSelectedTime.put(TimeSelector.ALL, oldData::getPlaytime);
         getSelectedTime.put(TimeSelector.WEEK, () -> {
             oldData.setCurrent_week(cal.get(Calendar.WEEK_OF_YEAR));
-            return TimeUtils.getTotalTime(oldData.getPlaytime_week());
+            return TimeUtils.getTotalTime(oldData.getPlaytime_week().toString());
         });
         getSelectedTime.put(TimeSelector.MONTH, () -> {
             oldData.setCurrent_month(cal.get(Calendar.MONTH) + 1);
-            return TimeUtils.getTotalTime(oldData.getPlaytime_month());
+            return TimeUtils.getTotalTime(oldData.getPlaytime_month().toString());
         });
         getSelectedTime.put(TimeSelector.YEAR, () -> {
             oldData.setCurrent_year(cal.get(Calendar.YEAR));
-            return TimeUtils.getTotalTime(oldData.getPlaytime_year());
+            return TimeUtils.getTotalTime(oldData.getPlaytime_year().toString());
         });
         Map<TimeSelector, Supplier<Integer>> getCurrentTime = new HashMap<TimeSelector, Supplier<Integer>>(){
             {

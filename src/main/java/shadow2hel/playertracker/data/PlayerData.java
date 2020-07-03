@@ -1,14 +1,13 @@
 package shadow2hel.playertracker.data;
 
+import shadow2hel.playertracker.setup.Config;
 import shadow2hel.playertracker.utils.TimeSelector;
 import shadow2hel.playertracker.utils.TimeUtils;
 
 import java.time.LocalDateTime;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public class PlayerData implements Cloneable {
     private String uuid;
@@ -23,10 +22,13 @@ public class PlayerData implements Cloneable {
     private int current_year = -1;
     private Date last_played = null;
     private int join_count = -1;
+    private Calendar cal;
 
     private PlayerData(String uuid, String username) {
         this.uuid = uuid;
         this.username = username;
+        this.cal = new GregorianCalendar();
+        cal.setTimeZone(TimeZone.getTimeZone(Config.SERVER.timeZone.get()));
     }
 
     public String getUuid() {
@@ -37,20 +39,20 @@ public class PlayerData implements Cloneable {
         return playtime;
     }
 
-    public String getPlaytime_all() {
-        return playtime_all.toString();
+    public MinecraftTime getPlaytime_all() {
+        return playtime_all;
     }
 
-    public String getPlaytime_week() {
-        return playtime_week.toString();
+    public MinecraftTime getPlaytime_week() {
+        return playtime_week;
     }
 
-    public String getPlaytime_month() {
-        return playtime_month.toString();
+    public MinecraftTime getPlaytime_month() {
+        return playtime_month;
     }
 
-    public String getPlaytime_year() {
-        return playtime_year.toString();
+    public MinecraftTime getPlaytime_year() {
+        return playtime_year;
     }
 
     public int getCurrent_week() {
@@ -130,6 +132,48 @@ public class PlayerData implements Cloneable {
 
     public void setJoin_count(int join_count) {
         this.join_count = join_count;
+    }
+
+    public void updatePlaytime(long addPlaytime) {
+        if (this.getCurrent_year() != cal.get(Calendar.YEAR)) {
+            updatePlaytimeData(addPlaytime, TimeSelector.YEAR, false);
+        } else if (this.getCurrent_year() == cal.get(Calendar.YEAR)) {
+            updatePlaytimeData(addPlaytime, TimeSelector.YEAR, true);
+        }
+
+        if (this.getCurrent_month() != (cal.get(Calendar.MONTH) + 1)) {
+            updatePlaytimeData(addPlaytime, TimeSelector.MONTH, false);
+        } else if (this.getCurrent_month() == (cal.get(Calendar.MONTH) + 1)) {
+            updatePlaytimeData(addPlaytime, TimeSelector.MONTH, true);
+        }
+
+        if (this.getCurrent_week() != (cal.get(Calendar.WEEK_OF_YEAR))) {
+            updatePlaytimeData(addPlaytime, TimeSelector.WEEK, false);
+        } else if (this.getCurrent_week() == (cal.get(Calendar.WEEK_OF_YEAR))) {
+            updatePlaytimeData(addPlaytime, TimeSelector.WEEK, true);
+        }
+        updatePlaytimeData(addPlaytime, TimeSelector.ALL, true);
+    }
+
+    private void updatePlaytimeData(long addPlaytime, TimeSelector selector, boolean addTime) {
+        Map<TimeSelector, Supplier<Long>> getSelectedTime = new HashMap<>();
+        getSelectedTime.put(TimeSelector.ALL, this::getPlaytime);
+        getSelectedTime.put(TimeSelector.WEEK, () -> {
+            this.setCurrent_week(cal.get(Calendar.WEEK_OF_YEAR));
+            return TimeUtils.getTotalTime(this.getPlaytime_week().toString());
+        });
+        getSelectedTime.put(TimeSelector.MONTH, () -> {
+            this.setCurrent_month(cal.get(Calendar.MONTH) + 1);
+            return TimeUtils.getTotalTime(this.getPlaytime_month().toString());
+        });
+        getSelectedTime.put(TimeSelector.YEAR, () -> {
+            this.setCurrent_year(cal.get(Calendar.YEAR));
+            return TimeUtils.getTotalTime(this.getPlaytime_year().toString());
+        });
+        long oldTotalPlaytime = 0;
+        oldTotalPlaytime = getSelectedTime.get(selector).get();
+        long newTimePlayedSeconds = addTime ? addPlaytime + oldTotalPlaytime : addPlaytime;
+        this.setPlaytimeWithChoice(selector, TimeUtils.getReadableTime(newTimePlayedSeconds));
     }
 
     @Override

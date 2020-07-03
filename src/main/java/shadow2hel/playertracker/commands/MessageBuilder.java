@@ -45,6 +45,19 @@ public class MessageBuilder {
         return this;
     }
 
+    public MessageBuilder addFooter(ITextComponent component, char encasing, int amountOfEncasing) {
+        StringBuilder encasingString = new StringBuilder();
+        for (int i = 0; i < amountOfEncasing; i++) {
+            encasingString.append(encasing);
+        }
+        StringTextComponent footer = new StringTextComponent(encasingString.toString());
+        footer.applyTextStyle(TextFormatting.GOLD);
+        footer.appendSibling(component);
+        footer.appendSibling(new StringTextComponent(encasingString.toString()).applyTextStyle(TextFormatting.GOLD));
+        textFooters.add(footer);
+        return this;
+    }
+
     public MessageBuilder addText(String message) {
         textMain.add(new StringTextComponent(message));
         return this;

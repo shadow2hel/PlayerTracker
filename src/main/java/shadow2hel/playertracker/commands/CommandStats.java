@@ -3,6 +3,7 @@ package shadow2hel.playertracker.commands;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.LiteralMessage;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -10,16 +11,19 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.util.text.Style;
+import net.minecraft.util.text.event.ClickEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import shadow2hel.playertracker.DbManager;
 import shadow2hel.playertracker.data.PlayerData;
 import shadow2hel.playertracker.utils.StringUtils;
+import shadow2hel.playertracker.utils.TimeSelector;
 
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public class CommandStats implements Command<CommandSource> {
@@ -27,61 +31,16 @@ public class CommandStats implements Command<CommandSource> {
     private static final CommandStats CMD = new CommandStats();
     private static final DbManager DB_MANAGER = DbManager.getInstance();
     private static final Logger LOGGER = LogManager.getLogger();
-    private static final Map<String, Function<CommandContext<CommandSource>, Integer>> SUBCOMMANDS = new HashMap<>();
+    private static final List<String> SUBCOMMANDS = new ArrayList<>();
 
     static {
-        SUBCOMMANDS.put("weekly", (c) -> {
-            List<PlayerData> playerData = DB_MANAGER.getAllPlayerData();
-            playerData = DB_MANAGER.getSortedPlayerDatas(playerData, Comparator.comparing(PlayerData::getPlaytime_week), true);
-            MessageBuilder msgBuilder = new MessageBuilder()
-                    .addHeader(" WEEKLY STATISTICS ", '=', 6);
-            for (int i = 0; i < playerData.size() && i < 9; i++) {
-                msgBuilder.addText(String.format("%s - %s", playerData.get(i).getUsername(), playerData.get(i).getPlaytime_week()));
+        for (TimeSelector value : TimeSelector.values()) {
+            String text = value.name().toLowerCase();
+            if (value != TimeSelector.ALL) {
+                text += "ly";
             }
-            Message msg = msgBuilder.addFooter("", '=', 10)
-                    .build();
-            msg.send(c.getSource(), true);
-            return 0;
-        });
-        SUBCOMMANDS.put("monthly", (c) -> {
-            List<PlayerData> playerData = DB_MANAGER.getAllPlayerData();
-            playerData = DB_MANAGER.getSortedPlayerDatas(playerData, Comparator.comparing(PlayerData::getPlaytime_month), true);
-            MessageBuilder msgBuilder = new MessageBuilder()
-                    .addHeader(" MONTHLY STATISTICS ", '=', 6);
-            for (int i = 0; i < playerData.size() && i < 9; i++) {
-                msgBuilder.addText(String.format("%s - %s", playerData.get(i).getUsername(), playerData.get(i).getPlaytime_month()));
-            }
-            Message msg = msgBuilder.addFooter("", '=', 10)
-                    .build();
-            msg.send(c.getSource(), true);
-            return 0;
-        });
-        SUBCOMMANDS.put("yearly", (c) -> {
-            List<PlayerData> playerData = DB_MANAGER.getAllPlayerData();
-            playerData = DB_MANAGER.getSortedPlayerDatas(playerData, Comparator.comparing(PlayerData::getPlaytime_year), true);
-            MessageBuilder msgBuilder = new MessageBuilder()
-                    .addHeader(" YEARLY STATISTICS ", '=', 6);
-            for (int i = 0; i < playerData.size() && i < 9; i++) {
-                msgBuilder.addText(String.format("%s - %s", playerData.get(i).getUsername(), playerData.get(i).getPlaytime_year()));
-            }
-            Message msg = msgBuilder.addFooter("", '=', 10)
-                    .build();
-            msg.send(c.getSource(), true);
-            return 0;
-        });
-        SUBCOMMANDS.put("all", (c) -> {
-            List<PlayerData> playerData = DB_MANAGER.getAllPlayerData();
-            playerData = DB_MANAGER.getSortedPlayerDatas(playerData, Comparator.comparing(PlayerData::getPlaytime_all), true);
-            MessageBuilder msgBuilder = new MessageBuilder()
-                    .addHeader(" STATISTICS ", '=', 6);
-            for (int i = 0; i < playerData.size() && i < 9; i++) {
-                msgBuilder.addText(String.format("%s - %s", playerData.get(i).getUsername(), playerData.get(i).getPlaytime_all()));
-            }
-            Message msg = msgBuilder.addFooter("", '=', 10)
-                    .build();
-            msg.send(c.getSource(), true);
-            return 0;
-        });
+            SUBCOMMANDS.add(text);
+        }
     }
 
     public static ArgumentBuilder<CommandSource, ?> register(CommandDispatcher<CommandSource> dispatcher) {
@@ -90,7 +49,7 @@ public class CommandStats implements Command<CommandSource> {
                 .then(
                         Commands.argument("time", StringArgumentType.string())
                                 .suggests((context, builder) -> {
-                                    SUBCOMMANDS.keySet().forEach(c -> {
+                                    SUBCOMMANDS.forEach(c -> {
                                         if (StringUtils.startsWithIgnoreCase(c, builder.getRemaining())) {
                                             builder.suggest(c);
                                         } else if (builder.getRemaining().isEmpty()) {
@@ -99,6 +58,10 @@ public class CommandStats implements Command<CommandSource> {
                                     });
                                     return builder.buildFuture();
                                 })
+                                .then(
+                                        Commands.argument("page", IntegerArgumentType.integer())
+                                        .executes(CMD)
+                                )
                                 .executes(CMD)
                 );
     }
@@ -106,11 +69,79 @@ public class CommandStats implements Command<CommandSource> {
     @Override
     public int run(CommandContext<CommandSource> context) throws CommandSyntaxException {
         String choice = context.getArgument("time", String.class);
-        if(!SUBCOMMANDS.containsKey(choice)) {
+        Optional<Integer> pageNumber = Optional.empty();
+        if (context.getNodes().size() > 2)
+            pageNumber = Optional.of(context.getArgument("page", Integer.class));
+        if (pageNumber.isPresent() && pageNumber.get() <= 0) {
+            SimpleCommandExceptionType exception = new SimpleCommandExceptionType(
+                    new LiteralMessage("Page number needs to be bigger than 0!"));
+            throw new CommandSyntaxException(exception, new LiteralMessage(exception.toString()));
+        }
+
+        if(!SUBCOMMANDS.contains(choice)) {
             SimpleCommandExceptionType exception = new SimpleCommandExceptionType(
                     new LiteralMessage("Time period doesn't exist!"));
             throw new CommandSyntaxException(exception, new LiteralMessage(exception.toString()));
         }
-        return SUBCOMMANDS.get(choice).apply(context);
+        return runSubcommand(context, pageNumber.orElse(1), choice);
+    }
+
+    private int runSubcommand(CommandContext<CommandSource> context, int pageNumber, String choice) throws CommandSyntaxException {
+        List<PlayerData> playerData = DB_MANAGER.getAllPlayerData();
+        switch(choice) {
+            case "weekly":
+                playerData = DB_MANAGER.getSortedPlayerDatas(playerData, Comparator.comparing(PlayerData::getPlaytime_week), true);
+                break;
+            case "monthly":
+                playerData = DB_MANAGER.getSortedPlayerDatas(playerData, Comparator.comparing(PlayerData::getPlaytime_month), true);
+                break;
+            case "yearly":
+                playerData = DB_MANAGER.getSortedPlayerDatas(playerData, Comparator.comparing(PlayerData::getPlaytime_year), true);
+                break;
+            case "all":
+                playerData = DB_MANAGER.getSortedPlayerDatas(playerData, Comparator.comparing(PlayerData::getPlaytime_all), true);
+                break;
+        }
+
+        int records = pageNumber * 10;
+        if (records > 10 && playerData.size() < records) {
+            SimpleCommandExceptionType exception = new SimpleCommandExceptionType(
+                    new LiteralMessage("Not enough entries!"));
+            throw new CommandSyntaxException(exception, new LiteralMessage(exception.toString()));
+        }
+
+        String allOrNot = choice.toUpperCase().equals("ALL") ? "" : " " + choice.toUpperCase();
+        MessageBuilder msgBuilder = new MessageBuilder()
+                .addHeader( allOrNot + " STATISTICS ", '=', 6);
+
+        for (int i = records - 10; i < playerData.size() && i < records; i++) {
+            msgBuilder.addText(String.format("%d. %s - %s", i + 1, playerData.get(i).getUsername(), playerData.get(i).getPlaytime_week()));
+        }
+
+        String command = choice.replace("ly", "");
+        int amountPages = (int)Math.ceil((double)playerData.size() / 10.0);
+        List<ITextComponent> links = new ArrayList<>();
+        for (int i = 0; i < amountPages; i++) {
+            StringTextComponent child;
+            if (i + 1 == pageNumber) {
+                child = new StringTextComponent((i + 1) + ", ");
+                child.setStyle(new Style().setUnderlined(true));
+            } else if (i + 1 == amountPages) {
+                child = new StringTextComponent((i + 1) + "");
+                child.setStyle(new Style().setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/pt stats " + command + " " + (i + 1))));
+            } else {
+                child = new StringTextComponent((i + 1) + ", ");
+                child.setStyle(new Style().setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/pt stats " + command + " " + (i + 1))));
+            }
+            links.add(child);
+        }
+
+        ITextComponent rootFoot = new StringTextComponent("");
+        links.forEach(rootFoot::appendSibling);
+
+        Message msg = msgBuilder.addFooter(rootFoot, '=', 10)
+                .build();
+        msg.send(context.getSource());
+        return 0;
     }
 }

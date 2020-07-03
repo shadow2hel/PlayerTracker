@@ -30,22 +30,4 @@ public class Message {
             textFooters.forEach(f -> s.sendFeedback(f, false));
     }
 
-    public void send(CommandSource s, boolean showNumbers) {
-        if (textHeaders != null && textHeaders.size() > 0)
-            textHeaders.forEach(h -> s.sendFeedback(h, false));
-        if (textHeaders != null && textHeaders.size() > 0) {
-            Holder<Integer> numbers = new Holder<>(0);
-            textMain = textMain.stream()
-                    .map(temp -> {
-                        StringTextComponent oldtext = (StringTextComponent) temp;
-                        numbers.value++;
-                        return new StringTextComponent(String.format("%d. %s", numbers.value, oldtext.getText()));
-                    })
-                    .collect(Collectors.toList());
-            textMain.forEach(m -> s.sendFeedback(m, false));
-        }
-        if (textFooters != null && textFooters.size() > 0)
-            textFooters.forEach(f -> s.sendFeedback(f, false));
-    }
-
 }
