@@ -27,6 +27,7 @@ public class Config {
         public final ForgeConfigSpec.ConfigValue<String> timeZone;
         public final ForgeConfigSpec.BooleanValue addPlayersFromSave;
         public final ForgeConfigSpec.IntValue maxEntriesPerPage;
+        public final ForgeConfigSpec.BooleanValue allowSelfLookup;
 
         //Encryption
         public final ForgeConfigSpec.BooleanValue encryption;
@@ -52,6 +53,10 @@ public class Config {
             maxEntriesPerPage = builder
                     .comment(" How many entries per page in statistics you want.")
                     .defineInRange("maxEntriesPerPage", 10, 1, 1000);
+
+            allowSelfLookup = builder
+                    .comment(" Allow players to use /pt me to lookup their own data.")
+                    .define("allowSelfLookup", false);
 
             builder.pop();
 

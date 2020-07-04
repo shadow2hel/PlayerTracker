@@ -13,6 +13,7 @@ public class ModCommands {
                 Commands.literal(PlayerTracker.MODID)
                         .then(CommandLookup.register(dispatcher))
                         .then(CommandStats.register(dispatcher))
+                        .then(CommandMe.register(dispatcher))
         );
 
         dispatcher.register(Commands.literal("pt").redirect(cmdPlayerTracker));
