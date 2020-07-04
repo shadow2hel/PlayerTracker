@@ -1,10 +1,17 @@
 package shadow2hel.playertracker;
 
 import com.ibm.icu.impl.Grego;
+import com.mojang.authlib.GameProfile;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.stats.ServerStatisticsManager;
 import net.minecraft.stats.Stats;
+import net.minecraft.world.dimension.DimensionType;
+import net.minecraft.world.server.ServerWorld;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.common.util.FakePlayerFactory;
+import net.minecraftforge.fml.server.ServerLifecycleHooks;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import shadow2hel.playertracker.data.MinecraftTime;
@@ -240,99 +247,6 @@ public class DbManager {
         return true;
     }
 
-    private long getNewTime(PlayerData oldData, TimeSelector selector, long playtime) {
-        long newTimePlayedSeconds = playtime;
-
-        if (selector == TimeSelector.ALL) {
-            // On world reset for example, when the statistics have been reset
-            long total = oldData.getPlaytime();
-            if (newTimePlayedSeconds < total) {
-                newTimePlayedSeconds += total;
-            }
-        }
-
-        if (selector == TimeSelector.WEEK) {
-            long week = TimeUtils.getTotalTime(oldData.getPlaytime_week().toString());
-            if (newTimePlayedSeconds < week) {
-                newTimePlayedSeconds += week;
-            }
-        }
-
-        if (selector == TimeSelector.MONTH) {
-            long month = TimeUtils.getTotalTime(oldData.getPlaytime_month().toString());
-            if (newTimePlayedSeconds < month) {
-                newTimePlayedSeconds += month;
-            }
-        }
-
-        if (selector == TimeSelector.YEAR) {
-            long year = TimeUtils.getTotalTime(oldData.getPlaytime_year().toString());
-            if (newTimePlayedSeconds < year) {
-                newTimePlayedSeconds += year;
-            }
-        }
-
-        if (selector == null)
-            throw new IllegalArgumentException("TimeSelector doesn't exist!");
-
-        return newTimePlayedSeconds;
-    }
-
-    private void updateUserData(Connection conn, long playtime, TimeSelector timeSelector, PlayerData oldData, PlayerEntity player, boolean addTime) throws SQLException {
-        Calendar cal = new GregorianCalendar();
-        cal.setTimeZone(TimeZone.getTimeZone(Config.SERVER.timeZone.get()));
-        Map<TimeSelector, Supplier<Long>> getSelectedTime = new HashMap<>();
-        getSelectedTime.put(TimeSelector.ALL, oldData::getPlaytime);
-        getSelectedTime.put(TimeSelector.WEEK, () -> {
-            oldData.setCurrent_week(cal.get(Calendar.WEEK_OF_YEAR));
-            return TimeUtils.getTotalTime(oldData.getPlaytime_week().toString());
-        });
-        getSelectedTime.put(TimeSelector.MONTH, () -> {
-            oldData.setCurrent_month(cal.get(Calendar.MONTH) + 1);
-            return TimeUtils.getTotalTime(oldData.getPlaytime_month().toString());
-        });
-        getSelectedTime.put(TimeSelector.YEAR, () -> {
-            oldData.setCurrent_year(cal.get(Calendar.YEAR));
-            return TimeUtils.getTotalTime(oldData.getPlaytime_year().toString());
-        });
-        Map<TimeSelector, Supplier<Integer>> getCurrentTime = new HashMap<TimeSelector, Supplier<Integer>>(){
-            {
-                put(TimeSelector.WEEK, oldData::getCurrent_week);
-                put(TimeSelector.MONTH, oldData::getCurrent_month);
-                put(TimeSelector.YEAR, oldData::getCurrent_year);
-            }
-        };
-        long newTimePlayedSeconds = getNewTime(oldData, timeSelector, playtime);
-        long timePlaytime = 0;
-        timePlaytime = getSelectedTime.get(timeSelector).get();
-        // Upon reset of the week/month/year activity
-        newTimePlayedSeconds = addTime ? newTimePlayedSeconds : newTimePlayedSeconds - timePlaytime;
-        oldData.setPlaytimeWithChoice(timeSelector, TimeUtils.getReadableTime(newTimePlayedSeconds));
-        if (timeSelector != TimeSelector.ALL) {
-            String sqlUpdate = "UPDATE PLAYERACTIVITY SET "
-                    + " playtime_" + timeSelector.name().toLowerCase() + " = ?,\n"
-                    + " current_" + timeSelector.name().toLowerCase() + " = ? "
-                    + " WHERE uuid = ?";
-            PreparedStatement pstUpdate = conn.prepareStatement(sqlUpdate);
-            pstUpdate.setString(1, TimeUtils.getReadableTime(getSelectedTime.get(timeSelector).get()).toString());
-            pstUpdate.setString(2, "" + getCurrentTime.get(timeSelector).get());
-            pstUpdate.setString(3, getEncryptedUUID(player.getUniqueID().toString()));
-
-            pstUpdate.executeUpdate();
-        } else {
-            String sqlUpdate = "UPDATE PLAYERACTIVITY SET "
-                    + " playtime = ?,\n"
-                    + " playtime_" + timeSelector.name().toLowerCase() + " = ? "
-                    + " WHERE uuid = ?";
-            PreparedStatement pstUpdate = conn.prepareStatement(sqlUpdate);
-            pstUpdate.setString(1, "" + getSelectedTime.get(timeSelector).get());
-            pstUpdate.setString(2, TimeUtils.getReadableTime(getSelectedTime.get(timeSelector).get()).toString());
-            pstUpdate.setString(3, getEncryptedUUID(player.getUniqueID().toString()));
-
-            pstUpdate.executeUpdate();
-        }
-    }
-
     public void updateUserStats(PlayerEntity player) {
         ServerStatisticsManager stats = ((ServerPlayerEntity) player).getStats();
         int joinCount = stats.getValue(Stats.CUSTOM.get(Stats.LEAVE_GAME)) + 1;
@@ -372,8 +286,24 @@ public class DbManager {
         }
     }
 
-    public void updateUser(PlayerEntity player) {
-        updateUserStats(player);
-        updateUserPlaytime(player);
+    public void populateDatabaseWithFakes(int amountFakePlayers) {
+        if (!Config.SERVER.debug.get())
+            return ;
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        List<FakePlayer> fakePlayers = new LinkedList<>();
+        for (int i = 0; i < amountFakePlayers; i++) {
+            GameProfile fakeProfile = new GameProfile(UUID.randomUUID(), "FakeUser" + (i + 1));
+            fakePlayers.add(FakePlayerFactory.get(server.getWorld(DimensionType.OVERWORLD), fakeProfile));
+        }
+
+        fakePlayers.forEach(p -> {
+            server.getPlayerProfileCache().addEntry(p.getGameProfile());
+            updateUserPlaytime(p);
+        });
+
+        fakePlayers.clear();
+        FakePlayerFactory.unloadWorld(server.getWorld(DimensionType.OVERWORLD));
     }
+
+
 }

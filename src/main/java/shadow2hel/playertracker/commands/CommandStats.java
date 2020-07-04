@@ -11,11 +11,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.StringTextComponent;
-import net.minecraft.util.text.Style;
-import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.text.*;
 import net.minecraft.util.text.event.ClickEvent;
+import net.minecraft.util.text.event.HoverEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import shadow2hel.playertracker.DbManager;
@@ -107,7 +105,8 @@ public class CommandStats implements Command<CommandSource> {
 
         int maxEntriesPerPage = Config.SERVER.maxEntriesPerPage.get();
         int possibleEntries = pageNumber * maxEntriesPerPage;
-        if (playerData.size() < possibleEntries) {
+        int bar = ((int)Math.ceil((double)playerData.size() / maxEntriesPerPage)) * maxEntriesPerPage;
+        if (possibleEntries > bar) {
             SimpleCommandExceptionType exception = new SimpleCommandExceptionType(
                     new LiteralMessage("Not enough entries!"));
             throw new CommandSyntaxException(exception, new LiteralMessage(exception.toString()));
@@ -135,10 +134,14 @@ public class CommandStats implements Command<CommandSource> {
                 child.applyTextStyle(TextFormatting.GREEN);
             } else if (i + 1 == amountPages) {
                 child = new StringTextComponent(String.format(" %d ", (i+1)));
-                child.setStyle(new Style().setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/pt stats " + choice + " " + (i + 1))));
+                child.setStyle(new Style()
+                        .setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/pt stats " + choice + " " + (i + 1)))
+                        .setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new StringTextComponent("/pt stats " + choice + " " + (i + 1)))));
             } else {
                 child = new StringTextComponent( String.format(" %d,", (i + 1)));
-                child.setStyle(new Style().setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/pt stats " + choice + " " + (i + 1))));
+                child.setStyle(new Style()
+                        .setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/pt stats " + choice + " " + (i + 1)))
+                        .setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new StringTextComponent("/pt stats " + choice + " " + (i + 1)))));
             }
             links.add(child);
         }

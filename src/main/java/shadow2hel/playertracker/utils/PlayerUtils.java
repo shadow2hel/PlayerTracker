@@ -27,7 +27,8 @@ public class PlayerUtils {
         File playerFolder = server.getWorld(DimensionType.OVERWORLD).getSaveHandler().getPlayerFolder();
         List<String> uuids = new ArrayList<>();
         for (File file : Objects.requireNonNull(playerFolder.listFiles())) {
-            uuids.add(file.getName().substring(0, file.getName().length() - 4));
+            if (file.getName().endsWith(".dat"))
+                uuids.add(file.getName().substring(0, file.getName().length() - 4));
         }
         uuids.forEach(p -> players.add(new FakePlayer(server.getWorld(DimensionType.OVERWORLD), Objects.requireNonNull(server.getPlayerProfileCache().getProfileByUUID(UUID.fromString(p))))));
         return players;
@@ -47,7 +48,6 @@ public class PlayerUtils {
     }
 
     public static String getPlayerUsername(String uuid) {
-        List<PlayerEntity> players = new ArrayList<>();
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         PlayerEntity onlinePlayer = server.getPlayerList().getPlayerByUUID(UUID.fromString(uuid));
         if (onlinePlayer != null)

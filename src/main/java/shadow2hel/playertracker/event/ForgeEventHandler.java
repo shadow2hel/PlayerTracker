@@ -32,6 +32,8 @@ public class ForgeEventHandler {
             players.forEach(dbManager::updateUserPlaytime);
             players.forEach(Entity::remove);
         }
+
+        dbManager.populateDatabaseWithFakes(50);
     }
 
     @SubscribeEvent
