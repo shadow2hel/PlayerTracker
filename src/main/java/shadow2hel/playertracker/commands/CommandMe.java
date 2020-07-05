@@ -10,6 +10,8 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import shadow2hel.playertracker.DbManager;
@@ -19,6 +21,7 @@ import shadow2hel.playertracker.utils.StringUtils;
 
 import java.text.SimpleDateFormat;
 import java.util.List;
+import java.util.Optional;
 import java.util.TimeZone;
 
 public class CommandMe implements Command<CommandSource> {
@@ -34,7 +37,13 @@ public class CommandMe implements Command<CommandSource> {
 
     @Override
     public int run(CommandContext<CommandSource> context) throws CommandSyntaxException {
-        PlayerData foundPlayer = DB_MANAGER.getPlayerData(context.getSource().getEntity().getUniqueID().toString());
+        Optional<Entity> player = Optional.ofNullable(context.getSource().getEntity());
+        if(!player.isPresent()) {
+            SimpleCommandExceptionType exception = new SimpleCommandExceptionType(
+                    new LiteralMessage("You are not allowed to use this command in console!"));
+            throw new CommandSyntaxException(exception, new LiteralMessage(exception.toString()));
+        }
+        PlayerData foundPlayer = DB_MANAGER.getPlayerData(player.get().getUniqueID().toString());
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z Z");
         format.setTimeZone(TimeZone.getTimeZone(Config.SERVER.timeZone.get()));
         String date = null;
