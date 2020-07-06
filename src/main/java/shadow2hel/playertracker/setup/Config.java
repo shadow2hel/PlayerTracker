@@ -68,7 +68,8 @@ public class Config {
                     .define("encryption", true);
 
             encryptionPassword = builder
-                    .comment(" Password used in the encryption.")
+                    .comment(" Password used in the encryption.\n" +
+                            " IF YOU LEAVE THIS AS DEFAULTPASSWORD A RANDOM PASSWORD WILL BE GENERATED FOR YOU!")
                     .define("encryptionPassword", "DEFAULTPASSWORD");
 
             //END Encryption settings

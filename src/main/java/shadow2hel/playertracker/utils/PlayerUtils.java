@@ -10,10 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 public class PlayerUtils {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -30,7 +27,13 @@ public class PlayerUtils {
             if (file.getName().endsWith(".dat"))
                 uuids.add(file.getName().substring(0, file.getName().length() - 4));
         }
-        uuids.forEach(p -> players.add(new FakePlayer(server.getWorld(DimensionType.OVERWORLD), Objects.requireNonNull(server.getPlayerProfileCache().getProfileByUUID(UUID.fromString(p))))));
+
+        uuids.forEach(p -> {
+            Optional<GameProfile> profile = Optional.ofNullable(server.getPlayerProfileCache().getProfileByUUID(UUID.fromString(p)));
+            if (!profile.isPresent())
+                server.getPlayerProfileCache().addEntry(new GameProfile(UUID.fromString(p), "!UnknownPlayer!"));
+            players.add(new FakePlayer(server.getWorld(DimensionType.OVERWORLD), Objects.requireNonNull(server.getPlayerProfileCache().getProfileByUUID(UUID.fromString(p)))));
+        });
         return players;
     }
 

@@ -9,6 +9,7 @@ import net.minecraftforge.fml.event.server.FMLServerStartingEvent;
 import net.minecraftforge.fml.event.server.FMLServerStoppingEvent;
 import shadow2hel.playertracker.DbManager;
 import shadow2hel.playertracker.commands.ModCommands;
+import shadow2hel.playertracker.encryption.Encryption;
 import shadow2hel.playertracker.setup.Config;
 import shadow2hel.playertracker.utils.PlayerUtils;
 
@@ -26,6 +27,8 @@ public class ForgeEventHandler {
     @SubscribeEvent
     public void onServerStarted(FMLServerStartedEvent event) {
         dbManager = DbManager.getInstance();
+
+        Encryption.setupEncryption();
 
         if (Config.SERVER.addPlayersFromSave.get()) {
             List<PlayerEntity> players = PlayerUtils.getAllPlayers();
