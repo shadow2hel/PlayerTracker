@@ -183,7 +183,7 @@ public class DbManager {
         String sql = "SELECT * FROM PLAYERACTIVITY WHERE uuid='" + getEncryptedUUID(player.getUniqueID().toString()) + "'";
         try (Connection conn = this.connect();
              Statement stmt = conn.createStatement()) {
-            Calendar cal = new GregorianCalendar();;
+            Calendar cal = new GregorianCalendar();
             cal.setTimeZone(TimeZone.getTimeZone(Config.SERVER.timeZone.get()));
             ResultSet rs = stmt.executeQuery(sql);
             if (!rs.next()) {
@@ -245,6 +245,49 @@ public class DbManager {
         }
 
         return true;
+    }
+
+    public void resetUsersPlaytime(){
+        Calendar cal = new GregorianCalendar();
+        List<PlayerData> players = getAllPlayerData();
+        players.forEach(p -> {
+            if(p.getCurrent_week() != cal.get(Calendar.WEEK_OF_YEAR))
+                p.setPlaytimeWithChoice(TimeSelector.WEEK, new MinecraftTime(0,0,0));
+            if(p.getCurrent_month() != cal.get(Calendar.MONTH) + 1)
+                p.setPlaytimeWithChoice(TimeSelector.MONTH, new MinecraftTime(0,0,0));
+            if(p.getCurrent_year() != cal.get(Calendar.YEAR))
+                p.setPlaytimeWithChoice(TimeSelector.YEAR, new MinecraftTime(0,0,0));
+        });
+        LOGGER.info(cal.get(Calendar.WEEK_OF_YEAR));
+
+        try (Connection conn = this.connect()) {
+            String sqlUpdate = "UPDATE PLAYERACTIVITY SET  \n" +
+                    "playtime_week = ?, \n" +
+                    "playtime_month = ?, \n" +
+                    "playtime_year = ?, \n" +
+                    "current_week = ?, \n" +
+                    "current_month = ?, \n" +
+                    "current_year = ? " +
+                    "WHERE uuid = ?";
+            for (PlayerData player :
+                    players) {
+                PreparedStatement pstUpdate = conn.prepareStatement(sqlUpdate);
+                pstUpdate.setString(1, player.getPlaytime_week().toString());
+                pstUpdate.setString(2, player.getPlaytime_month().toString());
+                pstUpdate.setString(3, player.getPlaytime_year().toString());
+                pstUpdate.setInt(4, cal.get(Calendar.WEEK_OF_YEAR));
+                pstUpdate.setInt(5, cal.get(Calendar.MONTH) + 1);
+                pstUpdate.setInt(6, cal.get(Calendar.YEAR));
+                pstUpdate.setString(7, getEncryptedUUID(player.getUuid()));
+                pstUpdate.executeUpdate();
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+
+
     }
 
     public void updateUserStats(PlayerEntity player) {

@@ -117,14 +117,18 @@ public class CommandStats implements Command<CommandSource> {
                 .addHeader( allOrNot + " STATISTICS ", '=', 6);
 
         for (int i = possibleEntries - maxEntriesPerPage; i < playerData.size() && i < possibleEntries; i++) {
-            if (choice.equals("weekly"))
+            if (choice.equals("weekly")) {
                 msgBuilder.addText(String.format("%d. %s - %s", i + 1, playerData.get(i).getUsername(), playerData.get(i).getPlaytime_week()));
-            if (choice.equals("monthly"))
+            }
+            if (choice.equals("monthly")) {
                 msgBuilder.addText(String.format("%d. %s - %s", i + 1, playerData.get(i).getUsername(), playerData.get(i).getPlaytime_month()));
-            if (choice.equals("yearly"))
+            }
+            if (choice.equals("yearly")) {
                 msgBuilder.addText(String.format("%d. %s - %s", i + 1, playerData.get(i).getUsername(), playerData.get(i).getPlaytime_year()));
-            if (choice.equals("all"))
+            }
+            if (choice.equals("all")) {
                 msgBuilder.addText(String.format("%d. %s - %s", i + 1, playerData.get(i).getUsername(), playerData.get(i).getPlaytime_all()));
+            }
         }
 
         int amountPages = (int)Math.ceil((double)playerData.size() / (double)maxEntriesPerPage);

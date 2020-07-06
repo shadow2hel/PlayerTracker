@@ -89,9 +89,9 @@ public class PlayerData implements Cloneable {
             this.playtime_all = minecraftTime;
             this.playtime = TimeUtils.getTotalTime(minecraftTime.toString());
         });
-        setTime.put(TimeSelector.WEEK, (minecraftTime) -> this.playtime_week = playtime);
-        setTime.put(TimeSelector.MONTH, (minecraftTime) -> this.playtime_month = playtime);
-        setTime.put(TimeSelector.YEAR, (minecraftTime) -> this.playtime_year = playtime);
+        setTime.put(TimeSelector.WEEK, (minecraftTime) -> this.playtime_week = minecraftTime);
+        setTime.put(TimeSelector.MONTH, (minecraftTime) -> this.playtime_month = minecraftTime);
+        setTime.put(TimeSelector.YEAR, (minecraftTime) -> this.playtime_year = minecraftTime);
 
         setTime.get(selector).accept(playtime);
         if (selector == null)
@@ -193,7 +193,7 @@ public class PlayerData implements Cloneable {
                 getUuid(), getUsername(), getPlaytime(),
                 getPlaytime_all(), getPlaytime_week(), getPlaytime_month(),
                 getPlaytime_year(), getCurrent_week(), getCurrent_month(),
-                getCurrent_year(), getLast_played().toString(),
+                getCurrent_year(), getLast_played() == null ? "None" : getLast_played(),
                 getJoin_count());
     }
 

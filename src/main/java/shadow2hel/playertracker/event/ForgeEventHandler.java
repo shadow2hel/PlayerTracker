@@ -14,10 +14,13 @@ import shadow2hel.playertracker.setup.Config;
 import shadow2hel.playertracker.utils.PlayerUtils;
 
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 
 public class ForgeEventHandler {
     private DbManager dbManager;
+    private Timer timer;
 
     @SubscribeEvent
     public void onServerStarting(FMLServerStartingEvent event) {
@@ -36,7 +39,16 @@ public class ForgeEventHandler {
             players.forEach(Entity::remove);
         }
 
-        dbManager.populateDatabaseWithFakes(50);
+        dbManager.populateDatabaseWithFakes(20);
+        dbManager.resetUsersPlaytime();
+        TimerTask task = new TimerTask(){
+            @Override
+            public void run() {
+                dbManager.resetUsersPlaytime();
+            }
+        };
+        timer = new Timer("UserPlaytimeReset");
+        timer.scheduleAtFixedRate(task, 1000L, 1000L * 3600L * 6L);
     }
 
     @SubscribeEvent
@@ -44,5 +56,6 @@ public class ForgeEventHandler {
         for (PlayerEntity player : event.getServer().getPlayerList().getPlayers()) {
             dbManager.updateUserPlaytime(player);
         }
+        timer.cancel();
     }
 }
